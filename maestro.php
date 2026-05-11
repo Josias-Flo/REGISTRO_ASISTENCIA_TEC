@@ -13,7 +13,7 @@ header('Expires: 0');
 $APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxtXZmzA8QnG1xO4kjEzx9sats4uSQRDrXWksD-p90Kc4stx4DhL1uML6Fg6AHEjzE1lg/exec';
 $ID_MAESTRO     = $_SESSION['id_maestro']     ?? '';
 $NOMBRE_MAESTRO = $_SESSION['nombre_maestro'] ?? '';
-$BACKEND_URL    = 'http://localhost:5000';
+$BACKEND_URL = 'https://tu-url.railway.app';
 
 function appsGet($url, $params = []) {
     $query = $params ? '?' . http_build_query($params) : '';

@@ -10,7 +10,7 @@ header('Cache-Control: no-store, no-cache, must-revalidate');
 header('Pragma: no-cache');
 header('Expires: 0');
 
-$BACKEND_URL = 'http://localhost:5000';
+$BACKEND_URL = 'https://tu-url.railway.app';
 
 // Carga inicial
 $ultimo        = [];
