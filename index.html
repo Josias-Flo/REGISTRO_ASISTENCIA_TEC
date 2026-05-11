@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Asistencia ESP32</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f4f5f7; padding: 1.5rem; color: #222; }
+
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px; }
+    .header h1 { font-size: 1.5rem; font-weight: 600; color: #1a1a1a; }
+
+    .badge { display: flex; align-items: center; gap: 6px; font-size: 12px;
+             color: #555; background: #fff; border: 1px solid #e0e0e0;
+             padding: 5px 12px; border-radius: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #1D9E75;
+           animation: pulse 1.5s ease-in-out infinite; }
+    .dot.error { background: #E24B4A; animation: none; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    .cards { display: flex; gap: 12px; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .card  { background: #fff; border: 1px solid #e5e5e5; border-radius: 10px;
+             padding: 1rem 1.25rem; flex: 1; min-width: 150px; 
+             box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .card small { font-size: 12px; color: #888; display: block; margin-bottom: 6px; }
+    .card span  { font-size: 28px; font-weight: 600; color: #222; }
+
+    .ultimo { background: #fff; border: 1px solid #e5e5e5; border-radius: 10px;
+              padding: 1rem 1.25rem; margin-bottom: 1.5rem; 
+              box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .ultimo h2 { font-size: 13px; font-weight: 600; color: #888; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .ultimo-data { display: flex; gap: 24px; align-items: baseline; flex-wrap: wrap; }
+    .ultimo-data .uid  { font-size: 24px; font-weight: 600; color: #0C447C; }
+    .ultimo-data .meta { font-size: 13px; color: #888; }
+
+    .tabla-box { background: #fff; border: 1px solid #e5e5e5; border-radius: 10px;
+                 padding: 1rem 1.25rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .tabla-box h2 { font-size: 13px; font-weight: 600; color: #888; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .search { width: 100%; padding: 10px 14px; border: 1px solid #e0e0e0;
+              border-radius: 8px; font-size: 14px; margin-bottom: 12px;
+              outline: none; color: #222; background: #fff; transition: border-color 0.2s; }
+    .search:focus { border-color: #378ADD; box-shadow: 0 0 0 3px rgba(55,138,221,0.1); }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th { text-align: left; padding: 10px; color: #666;
+               border-bottom: 2px solid #eee; font-weight: 600; }
+    tbody tr:hover { background: #fafafa; }
+    tbody td { padding: 10px; border-bottom: 1px solid #f0f0f0; }
+    tbody tr:last-child td { border-bottom: none; }
+
+    .uid-pill { background: #E6F1FB; color: #0C447C; padding: 4px 12px;
+                border-radius: 20px; font-size: 12px; font-weight: 600; 
+                display: inline-block; }
+    .num { color: #999; font-family: monospace; }
+    .empty { text-align: center; color: #aaa; padding: 3rem; font-size: 14px; }
+    
+    .loading { text-align: center; padding: 2rem; color: #666; }
+    .error-msg { background: #fff3f3; border: 1px solid #fcc; color: #c00; 
+                 padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+    .debug-info { background: #f0f8ff; border: 1px solid #d0e8ff; 
+                  padding: 0.5rem 1rem; border-radius: 6px; margin-top: 0.5rem;
+                  font-size: 12px; color: #666; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>📟 Control de asistencia — ESP32</h1>
+    <div class="badge">
+      <span class="dot" id="dot"></span>
+      <span id="estado">Conectando...</span>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <small>Total registros</small>
+      <span id="total">--</span>
+    </div>
+    <div class="card">
+      <small>Registros hoy</small>
+      <span id="hoy">--</span>
+    </div>
+    <div class="card">
+      <small>UIDs únicos</small>
+      <span id="unicos">--</span>
+    </div>
+    <div class="card">
+      <small>Última actualización</small>
+      <span id="ultima-hora" style="font-size:15px;">--</span>
+    </div>
+  </div>
+
+  <div class="ultimo">
+    <h2>Último acceso registrado</h2>
+    <div class="ultimo-data">
+      <span class="uid" id="ultimo-uid">--</span>
+      <span class="meta" id="ultimo-meta">--</span>
+    </div>
+  </div>
+
+  <div class="tabla-box">
+    <h2>Historial de registros</h2>
+    <input class="search" type="text" id="buscador" placeholder="🔍 Buscar por UID, fecha u hora...">
+    <div id="debug-container"></div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Fecha</th>
+          <th>Hora</th>
+          <th>UID / Usuario</th>
+        </tr>
+      </thead>
+      <tbody id="tabla-body">
+        <tr><td colspan="4" class="loading"> Cargando datos...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    let todosLosRegistros = [];
+    let sse = null;
+
+    function fechaHoy() {
+      const hoy = new Date();
+      const d = String(hoy.getDate()).padStart(2, '0');
+      const m = String(hoy.getMonth() + 1).padStart(2, '0');
+      const y = hoy.getFullYear();
+      return `${d}/${m}/${y}`;
+    }
+
+    function renderTabla(registros) {
+      const tbody = document.getElementById('tabla-body');
+      if (!registros.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty">📭 Sin registros encontrados</td></tr>';
+        return;
+      }
+      tbody.innerHTML = registros.map((r, i) => `
+        <tr>
+          <td class="num">${String(i + 1).padStart(3, '0')}</td>
+          <td>${r.fecha || '--'}</td>
+          <td>${r.hora || '--'}</td>
+          <td><span class="uid-pill">${r.usuario || '--'}</span></td>
+        </tr>
+      `).join('');
+    }
+
+    function actualizarUI(registros) {
+      todosLosRegistros = registros;
+
+      document.getElementById('total').textContent = registros.length;
+
+      const hoy = fechaHoy();
+      const deHoy = registros.filter(r => r.fecha === hoy).length;
+      document.getElementById('hoy').textContent = deHoy;
+
+      const unicos = new Set(registros.map(r => r.usuario)).size;
+      document.getElementById('unicos').textContent = unicos;
+
+      document.getElementById('ultima-hora').textContent =
+        new Date().toLocaleTimeString('es-MX', {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+
+      if (registros.length) {
+        const u = registros[0];
+        document.getElementById('ultimo-uid').textContent  = u.usuario;
+        document.getElementById('ultimo-meta').textContent = `${u.fecha} · ${u.hora}`;
+      }
+
+      const q = document.getElementById('buscador').value.toLowerCase();
+      const filtrados = q
+        ? registros.filter(r =>
+            r.usuario.toLowerCase().includes(q) ||
+            r.fecha.includes(q) ||
+            r.hora.includes(q))
+        : registros;
+
+      renderTabla(filtrados);
+
+      document.getElementById('estado').textContent =
+        'En vivo · ' + new Date().toLocaleTimeString('es-MX');
+      document.getElementById('dot').className = 'dot';
+      
+      // Debug info
+      const debugContainer = document.getElementById('debug-container');
+      debugContainer.innerHTML = `<div class="debug-info">✓ ${registros.length} registros cargados correctamente</div>`;
+    }
+
+    function conectarSSE() {
+      if (sse) sse.close();
+      
+      const url = '/api/stream';
+      console.log(' Conectando SSE:', url);
+      
+      sse = new EventSource(url);
+      
+      sse.onmessage = e => {
+        try {
+          const datos = JSON.parse(e.data);
+          console.log('📥 Datos recibidos:', datos.length, 'registros');
+          actualizarUI(datos);
+        } catch (err) {
+          console.error('❌ Error parseando SSE:', err);
+        }
+      };
+      
+      sse.onerror = () => {
+        console.warn('️ SSE desconectado, reintentando...');
+        document.getElementById('estado').textContent = 'Sin conexión — reintentando...';
+        document.getElementById('dot').className = 'dot error';
+        sse.close();
+        setTimeout(conectarSSE, 3000);
+      };
+      
+      sse.onopen = () => {
+        console.log('✅ SSE conectado');
+      };
+    }
+
+    document.getElementById('buscador').addEventListener('input', function () {
+      const q = this.value.toLowerCase();
+      const filtrados = q
+        ? todosLosRegistros.filter(r =>
+            r.usuario.toLowerCase().includes(q) ||
+            r.fecha.includes(q) ||
+            r.hora.includes(q))
+        : todosLosRegistros;
+      renderTabla(filtrados);
+    });
+
+    async function cargaInicial() {
+      try {
+        const res = await fetch('/api/asistencia');
+        if (res.ok) {
+          const datos = await res.json();
+          console.log(' Carga inicial:', datos.length, 'registros');
+          actualizarUI(datos);
+        } else {
+          throw new Error('Status: ' + res.status);
+        }
+      } catch (e) {
+        console.warn('⚠️ No se pudo cargar datos iniciales:', e);
+        document.getElementById('tabla-body').innerHTML = 
+          '<tr><td colspan="4" class="error-msg">⚠️ Error al cargar datos: ' + e.message + '<br>Revisa que el servidor esté corriendo</td></tr>';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      cargaInicial();
+      conectarSSE();
+    });
+
+    window.addEventListener('beforeunload', () => {
+      if (sse) sse.close();
+    });
+  </script>
+
+</body>
+</html>
