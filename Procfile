@@ -1,1 +1,1 @@
-web: pip install -r requirements.txt && waitress-serve --port=$PORT --call app:app
+web: python -m pip install -r requirements.txt && python -m waitress --port=$PORT --call app:app
